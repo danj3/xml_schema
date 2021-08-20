@@ -1,0 +1,12 @@
+<?xml encoding="utf-8" ?>
+<Permuted creator="danj">
+  <SingleTag>hello</SingleTag>
+  <Items>
+    <item1>
+      <Field>a</Field>
+    </item1>
+    <item2>
+      <Field>b</Field>
+    </item2>
+  </Items>
+</Permuted>

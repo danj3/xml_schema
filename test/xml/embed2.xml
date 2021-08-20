@@ -1,0 +1,15 @@
+<?xml encoding="utf-8" ?>
+<Embed2 creator="danj">
+  <EventHorizon>No Light escapes</EventHorizon>
+  <Name>Bob</Name>
+  <Single complete="false">
+    <Name>Bob</Name>
+    <Address>123 Evergreen Terrace</Address>
+    <Address>Apt 123</Address>
+  </Single>
+  <Single complete="false">
+    <Name>Fred</Name>
+    <Address>456 Evergreen Terrace</Address>
+    <Address>Apt 789</Address>
+  </Single>
+</Embed2>

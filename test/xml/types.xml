@@ -1,0 +1,13 @@
+<?xml encoding="utf-8" ?>
+<Types>
+  <String>Bob</String>
+  <TrimString>   foo   </TrimString>
+  <Integer>123</Integer>
+  <Float>1.53</Float>
+  <BooleanTrue>true</BooleanTrue>
+  <BooleanFalse>false</BooleanFalse>
+  <Atom>free_atom</Atom>
+  <Dollars>106.16</Dollars>
+  <NDollars>-55.17</NDollars>
+  <Odollar>61.1235</Odollar>
+</Types>
