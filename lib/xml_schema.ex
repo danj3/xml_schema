@@ -83,6 +83,10 @@ defmodule XmlSchema do
     end
   end
 
+  defmodule ParseError do
+    defexception message: "probem parsing xml into schema"
+  end
+
   def parse_xml( xml_string, module ) do
     :erlsom.simple_form( xml_string )
     |> case do
@@ -108,29 +112,48 @@ defmodule XmlSchema do
     }
   end
 
-  defp unpack_tag( { tag, attr, child }, module, acc ) do
-    field = List.to_atom( tag )
+  @nsre Regex.compile!( "^({(?<ns>[^}]+)})?(?<tag>.*)" )
 
-    # IO.inspect( {
-    #   field,
-    #   module,
-    #   module.__schema__(:embed,field)
-    #     }, label: "embed!" )
+  defp ns_tag( tag, attr ) do
+    with [ ?{ | _ ] <- tag,
+         str_tag <- to_string( tag ),
+         %{ "ns" => ns, "tag" => bare_tag } <- Regex.named_captures( @nsre, str_tag ) do
+      { bare_tag, [ {'_ns', ns} | attr ] }
+    else
+      _unscoped ->
+        { to_string( tag ), attr }
+    end
+  end
+
+  defp unpack_tag( { tag, attr_in, child }, module, acc ) do
+    { str_field, attr } = ns_tag( tag, attr_in )
+
+    field = String.to_atom( str_field )
+
+    # IO.inspect(
+    #   [
+    #     attr: attr,
+    #     str_field: str_field,
+    #     tag: tag,
+    #     field: field,
+    #     module: module,
+    #     embed: module.__schema__(:embed,field)
+    #   ], label: "unpack_tag" )
 
     module.__schema__( :type, field )
-    #    |> IO.inspect( label: "TYPE")
+    # |> IO.inspect( label: "TYPE")
     |> case do
       nil ->
         try_transform( { tag, attr, child }, module, acc )
 
       { :array, subtype } ->
-        update_array( acc, field, charlist_to_type( child, subtype ) )
+        update_array( acc, field, charlist_to_type( child, subtype, field ) )
 
       { :parameterized, Ecto.Embedded, params } ->
         embed( acc, field, { tag, attr, child }, params )
 
       subtype ->
-        Map.put( acc, field, charlist_to_type( child, subtype ) )
+        Map.put( acc, field, charlist_to_type( child, subtype, field ) )
     end
   end
 
@@ -169,9 +192,9 @@ defmodule XmlSchema do
     end
   end
 
-  def charlist_to_type( [], _type ), do: nil
+  def charlist_to_type( [], _type, _field ), do: nil
 
-  def charlist_to_type( [ cl ], type ) do
+  def charlist_to_type( [ cl ], type, _field ) when is_list( cl ) do
     # IO.puts( "charlist_to_type: val=#{inspect(cl)} type=#{type}")
 
     cond do
@@ -199,6 +222,11 @@ defmodule XmlSchema do
           other -> other
         end
     end
+  end
+
+  def charlist_to_type( other, type, field ) do
+    raise ParseError,
+      message: "tag #{ field } to #{ type } is not a string input: #{ inspect(other) }"
   end
 
   def generate_child( schema, as_tag ) do
