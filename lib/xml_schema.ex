@@ -280,8 +280,10 @@ defmodule XmlSchema do
   end
 
   def generate_xml( schema ) do
-    name = schema.__struct__.xml_tag()
+    generate_xml(schema, schema.__struct__.xml_tag())
+  end
 
+  def generate_xml(schema, name) do
     generate_child( schema, name )
     |> XmlBuilder.document()
     |> XmlBuilder.generate( pretty: true )
