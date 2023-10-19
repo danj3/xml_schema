@@ -3,6 +3,6 @@ defmodule Single do
 
   xml do
     xml_tag :Name, :string
-    xml_tag :Address, { :array, :string }
+    xml_tag :Address, {:array, :string}
   end
 end

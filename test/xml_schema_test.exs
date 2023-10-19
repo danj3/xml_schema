@@ -8,37 +8,37 @@ defmodule XmlSchemaTest do
 
   @tag :single
   test "parse single" do
-    r = %Single{ 
-      Address: [ "123 Evergreen Terrace", "Apt 123" ],
+    r = %Single{
+      Address: ["123 Evergreen Terrace", "Apt 123"],
       Name: "Bob",
-      _attributes: %{ "complete" => "false" }
+      _attributes: %{"complete" => "false"}
     }
 
-    p = Single.parse_xml( File.read!( "test/xml/single.xml" ) )
+    p = Single.parse_xml(File.read!("test/xml/single.xml"))
     assert p == r
-    IO.inspect( [ parsed: p ], pretty: true )
+    IO.inspect([parsed: p], pretty: true)
   end
 
   @tag :embed1
   test "parse embed1" do
-    r = %Embed1{ 
+    r = %Embed1{
       EventHorizon: "No Light escapes",
-      Single: %Single{ 
-        Address: [ "123 Evergreen Terrace", "Apt 123" ],
+      Single: %Single{
+        Address: ["123 Evergreen Terrace", "Apt 123"],
         Name: "Bob",
-        _attributes: %{ "complete" => "false" }
+        _attributes: %{"complete" => "false"}
       },
-      _attributes: %{ "creator" => "danj" }
+      _attributes: %{"creator" => "danj"}
     }
 
-    p = Embed1.parse_xml( File.read!( "test/xml/embed1.xml" ) )
+    p = Embed1.parse_xml(File.read!("test/xml/embed1.xml"))
     assert p == r
-    IO.inspect( [ parsed: p ], pretty: true )
+    IO.inspect([parsed: p], pretty: true)
   end
 
   @tag :embed2
   test "parse embed2" do
-    r = %Embed2{ 
+    r = %Embed2{
       EventHorizon: "No Light escapes",
       Single: [
         %Single{
@@ -52,17 +52,17 @@ defmodule XmlSchemaTest do
           _attributes: %{"complete" => "false"}
         }
       ],
-      _attributes: %{ "creator" => "danj" }
+      _attributes: %{"creator" => "danj"}
     }
 
-    p = Embed2.parse_xml( File.read!( "test/xml/embed2.xml" ) )
+    p = Embed2.parse_xml(File.read!("test/xml/embed2.xml"))
     assert p == r
-    IO.inspect( [ parsed: p ], pretty: true )
+    IO.inspect([parsed: p], pretty: true)
   end
 
   @tag :types
   test "types" do
-    r = %Types{ 
+    r = %Types{
       BooleanFalse: false,
       BooleanTrue: true,
       Float: 1.53,
@@ -76,9 +76,9 @@ defmodule XmlSchemaTest do
       _attributes: nil
     }
 
-    p = Types.parse_xml( File.read!( "test/xml/types.xml" ) )
+    p = Types.parse_xml(File.read!("test/xml/types.xml"))
     assert p == r
-    IO.inspect( [ parsed: p ], pretty: true )
+    IO.inspect([parsed: p], pretty: true)
   end
 
   @tag :simple
@@ -95,7 +95,7 @@ defmodule XmlSchemaTest do
       g: ["hippo", "elephant", "rhino"]
     }
 
-    p = Simple.parse_xml( File.read!("test/xml/simple.xml"))
+    p = Simple.parse_xml(File.read!("test/xml/simple.xml"))
     IO.inspect(p)
     assert p == ref
   end

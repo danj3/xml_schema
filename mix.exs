@@ -15,10 +15,10 @@ defmodule XmlSchema.MixProject do
   defp elixirc_paths do
     case Mix.env() do
       :test ->
-        [ "lib", "test/support" ]
+        ["lib", "test/support"]
 
       _ ->
-        [ "lib" ]
+        ["lib"]
     end
   end
 

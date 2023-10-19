@@ -1,7 +1,7 @@
 defmodule Permuted.Items do
   use XmlSchema, transform: &transform/1
 
-  def transform( tag ), do: 'fake'
+  def transform(tag), do: ~c"fake"
 
   xml do
     xml_many :fake, Item do
