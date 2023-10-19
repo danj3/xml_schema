@@ -256,6 +256,9 @@ defmodule XmlSchema do
                 { :parameterized, Ecto.Embedded, %{ cardinality: :many } } ->
                   [ Enum.map(val, &generate_child(&1, fld_c)) | acc ]
 
+                   { :array, _type } ->
+                     Enum.map(val, fn v2 -> { fld_c, [], v2 } end ) ++ acc
+
                 maybe_custom ->
                   cond do
                     Ecto.Type.base?( maybe_custom ) ->
