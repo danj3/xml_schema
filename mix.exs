@@ -34,8 +34,7 @@ defmodule XmlSchema.MixProject do
     [
       # {:dep_from_hexpm, "~> 0.3.0"},
       # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"}
-      {:ecto, "~> 3.6"},
-      {:format_relax, github: "danj3/format_relax"},
+      {:ecto, "~> 3.10"},
       {:erlsom, "~> 1.5"},
       {:xml_builder, "~> 2.2"}
     ]
