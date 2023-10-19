@@ -1,0 +1,18 @@
+<?xml encoding="utf-8" ?>
+<a someattr="blue" otherattr="red">
+  <x>hill</x>
+  <y>false</y>
+  <z>
+    <a>tree</a>
+    <b>bush</b>
+  </z>
+  <j>
+    <q>cat</q>
+  </j>
+  <j>
+    <q>dog</q>
+  </j>
+  <g>hippo</g>
+  <g>elephant</g>
+  <g>rhino</g>
+</a>

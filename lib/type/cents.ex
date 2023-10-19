@@ -1,4 +1,8 @@
 defmodule XmlSchema.Type.Cents do
+  @moduledoc """
+  Converts float currency with cents into integer cents.
+  """
+
   use Ecto.Type
 
   def type, do: :integer

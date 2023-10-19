@@ -1,4 +1,9 @@
 defmodule XmlSchema.Type.StringTrim do
+  @moduledoc """
+  Trims input strings of whitespace. Can be a common occurance in
+  some Xml documents.
+  """
+
   use Ecto.Type
 
   def type, do: :string

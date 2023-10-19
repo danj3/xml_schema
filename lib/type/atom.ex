@@ -1,4 +1,10 @@
 defmodule XmlSchema.Type.Atom do
+  @moduledoc """
+  Type translates a string into an atom on xml parsing. Use
+  with caution, only for trusted documents. Can lead to
+  atom exhaustion.
+  """
+
   use Ecto.Type
 
   def type, do: :atom

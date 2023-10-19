@@ -1,7 +1,79 @@
 defmodule XmlSchema do
   @moduledoc """
-  Documentation for `XmlSchema`.
+  Documentation for `XmlSchema`. See README.md
+
+  Instrument a module with `use XmlSchema`. Define Xml structures with:
+  - xml
+  - xml_tag
+  - xml_one
+  - xml_many
+
+  Options to `use`:
+    `xml_name: <string>` string to use as xml tag name for this element.
+     This is necessary because lower case tags cannot be assumed from
+     initial caps module names.
+
+
+  Simple example:
+  ```elixir
+  defmodule Simple do
+    use XmlSchema, xml_name: "a"
+    xml do
+      xml_tag :x, :string
+      xml_tag :y, :boolean
+      xml_one :z, Z do
+        xml_tag :a, :string
+        xml_tag :b, :string
+      end
+      xml_many :j, J do
+        xml_tag :q, :string
+      end
+      xml_tag :g, {:array, :string}
+    end
+  end
+  ```
+
+  Will parse
+
+  ```xml
+  <?xml encoding="utf-8" ?>
+  <a someattr="blue" otherattr="red">
+    <x>hill</x>
+    <y>false</y>
+    <z>
+      <a>tree</a>
+      <b>bush</b>
+    </z>
+    <j>
+      <q>cat</q>
+    </j>
+    <j>
+      <q>dog</q>
+    </j>
+    <g>hippo</g>
+    <g>elephant</g>
+    <g>rhino</g>
+  </a>
+  ```
+
+  Into:
+
+  ```elixir
+  %Simple{
+    _attributes: %{"otherattr" => "red", "someattr" => "blue"},
+    x: "hill",
+    y: false,
+    z: %Simple.Z{_attributes: nil, a: "tree", b: "bush"},
+    j: [
+      %Simple.J{_attributes: nil, q: "cat"},
+      %Simple.J{_attributes: nil, q: "dog"}
+    ],
+    g: ["hippo", "elephant", "rhino"]
+  }
+  ```
+
   """
+
   defmacro xml( block ) do
     quote do
       @primary_key false
@@ -300,17 +372,22 @@ defmodule XmlSchema do
     Module.register_attribute( __CALLER__.module, :tag_order, accumulate: true )
 
     quote do
+      @moduledoc "See XmlSchema for information"
       use Ecto.Schema
       import unquote( __MODULE__ )
 
+      @doc "Parse xml_string using #{__MODULE__} as starting point"
       def parse_xml( xml_string ) do
         unquote( __MODULE__ ).parse_xml( xml_string, __MODULE__ )
       end
 
+      @doc "return tag name to use when generating xml"
       def xml_tag, do: unquote( xml_name )
 
+      @doc "list of ordered tags in this schema"
       def xml_tag_list, do: Enum.reverse( @tag_order )
 
+      @doc "Overridable function for transforming input tags"
       def transform( _tag ), do: nil
       defoverridable transform: 1
     end

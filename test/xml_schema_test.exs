@@ -81,4 +81,22 @@ defmodule XmlSchemaTest do
     IO.inspect( [ parsed: p ], pretty: true )
   end
 
+  @tag :simple
+  test "simple example" do
+    ref = %Simple{
+      _attributes: %{"otherattr" => "red", "someattr" => "blue"},
+      x: "hill",
+      y: false,
+      z: %Simple.Z{_attributes: nil, a: "tree", b: "bush"},
+      j: [
+        %Simple.J{_attributes: nil, q: "cat"},
+        %Simple.J{_attributes: nil, q: "dog"}
+      ],
+      g: ["hippo", "elephant", "rhino"]
+    }
+
+    p = Simple.parse_xml( File.read!("test/xml/simple.xml"))
+    IO.inspect(p)
+    assert p == ref
+  end
 end
