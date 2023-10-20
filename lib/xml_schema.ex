@@ -13,6 +13,9 @@ defmodule XmlSchema do
      This is necessary because lower case tags cannot be assumed from
      initial caps module names.
 
+    `print: <boolean>` will print the macro generated code, e.g:
+      `print: Mix.env() in [:test, :dev]`
+
 
   Simple example:
   ```elixir
@@ -366,19 +369,15 @@ defmodule XmlSchema do
     name
   end
 
-  defmacro __using__(opts) do
-    xml_name = Keyword.get(opts, :tag, module_tail_to_string(__CALLER__.module))
-
-    Module.register_attribute(__CALLER__.module, :tag_order, accumulate: true)
-
-    quote do
+  def generate(xml_name) do
+    quote bind_quoted: [xml_name: xml_name] do
       @moduledoc "See XmlSchema for information"
       use Ecto.Schema
-      import unquote(__MODULE__)
+      import XmlSchema
 
-      @doc "Parse xml_string using #{__MODULE__} as starting point"
+      @doc "Parse xml_string using #{xml_name} as starting point"
       def parse_xml(xml_string) do
-        unquote(__MODULE__).parse_xml(xml_string, __MODULE__)
+        XmlSchema.parse_xml(xml_string, __MODULE__)
       end
 
       @doc "return tag name to use when generating xml"
@@ -391,5 +390,17 @@ defmodule XmlSchema do
       def transform(_tag), do: nil
       defoverridable transform: 1
     end
+  end
+
+  defmacro __using__(opts) do
+    xml_name = Keyword.get(opts, :tag, module_tail_to_string(__CALLER__.module))
+
+    Module.register_attribute(__CALLER__.module, :tag_order, accumulate: true)
+
+    generate(xml_name)
+    |> tap(fn gen ->
+      if Keyword.get(opts, :print, false),
+        do: IO.puts("XmlSchema generation for #{__CALLER__.module}:\n" <> Macro.to_string(gen))
+    end)
   end
 end

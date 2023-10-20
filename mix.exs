@@ -4,7 +4,7 @@ defmodule XmlSchema.MixProject do
   def project do
     [
       app: :xml_schema,
-      version: "1.2.1",
+      version: "1.2.2",
       elixir: "~> 1.13",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -16,15 +16,14 @@ defmodule XmlSchema.MixProject do
       source_url: "https://github.com/danj3/xml_schema",
       docs: [
         main: "readme",
-        extras: [ "README.md" ]
+        extras: ["README.md"]
       ]
-
     ]
   end
 
   defp package do
     [
-      exclude_patterns: [ ~r{.*~$} ],
+      exclude_patterns: [~r{.*~$}],
       description: description(),
       licenses: ["Apache-2.0"],
       links: %{
@@ -64,7 +63,7 @@ defmodule XmlSchema.MixProject do
       {:ecto, "~> 3.10"},
       {:erlsom, "~> 1.5"},
       {:xml_builder, "~> 2.2"},
-      {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
+      {:ex_doc, ">= 0.0.0", only: :dev, runtime: false}
     ]
   end
 end
