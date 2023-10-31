@@ -1,13 +1,26 @@
 # XmlSchema
 
-🧼 (BAR OF SOAP)
-
 🧽 (MOP)
 
 XML Parser based on Ecto schemas
 
-Parses XML documents directly into Ecto.Schema but with additional layer of DSL to describe
-XML structure. All features from Ecto.Schema can be used.
+Parses XML documents directly into Ecto.Schema but with additional
+layer of DSL to describe XML structure. All features from
+Ecto.Schema can be used.
+
+Purpose is to ease access to CDATA and attributes on input at the
+sacrifice of precise access to all CDATA fragments that may exist
+(as occurs with indentation). Tag parsing and generation order is
+preserved based on the schema defined. Order of attributes are not
+preserved and are stored as a map excluding multiple instances of
+the same attribute in a single tag instance.
+
+Terminal tags are available by default as bare values
+(strings, integers, etc.), but does not allow for attributes. A
+tuple container can be specified if attributes are needed resulting
+in values of `{tag-value, attributes-map}`. The syntax to create this
+container is `{:param, type}`, where type is a base type (like `:string`,
+or a custom type).
 
 # Sample
 
