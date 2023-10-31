@@ -1,5 +1,6 @@
 defmodule Simple do
-  use XmlSchema, xml_name: "a",
+  use XmlSchema,
+    xml_name: "a",
     print: Mix.env() in [:test, :dev]
 
   xml do

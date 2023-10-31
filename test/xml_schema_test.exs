@@ -1,10 +1,5 @@
 defmodule XmlSchemaTest do
   use ExUnit.Case
-  doctest XmlSchema
-
-  test "greets the world" do
-    assert Single.__struct__() == %Single{}
-  end
 
   @tag :single
   test "parse single" do
@@ -16,7 +11,7 @@ defmodule XmlSchemaTest do
 
     p = Single.parse_xml(File.read!("test/xml/single.xml"))
     assert p == r
-    IO.inspect([parsed: p], pretty: true)
+    Help.do_inspect(p)
   end
 
   @tag :embed1
@@ -33,7 +28,7 @@ defmodule XmlSchemaTest do
 
     p = Embed1.parse_xml(File.read!("test/xml/embed1.xml"))
     assert p == r
-    IO.inspect([parsed: p], pretty: true)
+    Help.do_inspect(p)
   end
 
   @tag :embed2
@@ -57,7 +52,7 @@ defmodule XmlSchemaTest do
 
     p = Embed2.parse_xml(File.read!("test/xml/embed2.xml"))
     assert p == r
-    IO.inspect([parsed: p], pretty: true)
+    Help.do_inspect(p)
   end
 
   @tag :types
@@ -78,7 +73,7 @@ defmodule XmlSchemaTest do
 
     p = Types.parse_xml(File.read!("test/xml/types.xml"))
     assert p == r
-    IO.inspect([parsed: p], pretty: true)
+    Help.do_inspect(p)
   end
 
   @tag :simple
@@ -96,7 +91,7 @@ defmodule XmlSchemaTest do
     }
 
     p = Simple.parse_xml(File.read!("test/xml/simple.xml"))
-    IO.inspect(p)
+    Help.do_inspect(p)
     assert p == ref
   end
 end
