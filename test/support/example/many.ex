@@ -29,6 +29,7 @@ defmodule Example.Many do
       s: []
     }
   end
+
   def expect_xml do
     """
     <?xml version="1.0" encoding="UTF-8"?>

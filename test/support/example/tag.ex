@@ -26,5 +26,4 @@ defmodule Example.Tag do
     """
     |> String.trim_trailing()
   end
-
 end

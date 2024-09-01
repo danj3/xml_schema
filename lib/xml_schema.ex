@@ -95,7 +95,7 @@ defmodule XmlSchema do
 
   An example:
   ```elixir
-#{File.read!("test/support/example/attribute.ex")}
+  #{File.read!("test/support/example/attribute.ex")}
   ```
 
 
@@ -411,7 +411,9 @@ defmodule XmlSchema do
   end
 
   defp generate_custom(maybe_custom, fld_c, list_comp_val, acc) when is_list(list_comp_val) do
-    Enum.reduce(list_comp_val, acc, fn sval,acc2 -> generate_custom(maybe_custom, fld_c, sval, acc2) end)
+    Enum.reduce(list_comp_val, acc, fn sval, acc2 ->
+      generate_custom(maybe_custom, fld_c, sval, acc2)
+    end)
   end
 
   defp generate_custom(maybe_custom, fld_c, comp_val, acc) do
@@ -435,8 +437,8 @@ defmodule XmlSchema do
     end
   end
 
-  defp generate_value_array({:array, ptype} = type, fld_c, [h|t], acc) do
-    generate_value_array(type, fld_c, t, generate_value(ptype,fld_c,h,acc))
+  defp generate_value_array({:array, ptype} = type, fld_c, [h | t], acc) do
+    generate_value_array(type, fld_c, t, generate_value(ptype, fld_c, h, acc))
   end
 
   defp generate_value_array(_type, _fld_c, [], acc), do: acc
@@ -478,10 +480,12 @@ defmodule XmlSchema do
             nil ->
               acc
 
-               [] -> acc
+            [] ->
+              acc
+
             val ->
-                 schema.__struct__.__schema__(:type, fld)
-                 |> generate_value(fld_c, val, acc)
+              schema.__struct__.__schema__(:type, fld)
+              |> generate_value(fld_c, val, acc)
           end
       end)
 
