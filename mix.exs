@@ -4,7 +4,7 @@ defmodule XmlSchema.MixProject do
   def project do
     [
       app: :xml_schema,
-      version: "1.3.0",
+      version: "2.0.1",
       elixir: "~> 1.13",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -13,7 +13,7 @@ defmodule XmlSchema.MixProject do
 
       # Docs
       name: "XmlSchema",
-      source_url: "https://github.com/danj3/xml_schema/tree/v-1.3.0",
+      source_url: "https://github.com/danj3/xml_schema/tree/v-2.0.1",
       docs: [
         main: "readme",
         extras: ["README.md"]
