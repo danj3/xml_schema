@@ -258,7 +258,7 @@ defmodule XmlSchema do
   end
 
   defp unpack_xml({_tag, attr, children}, module) do
-    Enum.reduce(children, module.__struct__, &unpack_tag(&1, module, &2))
+    Enum.reduce(children, module.__struct__(), &unpack_tag(&1, module, &2))
     |> add_attrs(attr)
   end
 
@@ -291,27 +291,22 @@ defmodule XmlSchema do
   defp unpack_tag({tag, attr_in, child}, module, acc) do
     {str_field, attr} = ns_tag(tag, attr_in)
 
-    field = String.to_atom(str_field)
-    type = module.__schema__(:type, field)
+    module.get_tag(str_field)
+    |> case do
+      nil ->
+        try_transform({str_field, attr, child}, module, acc)
 
-    if false do
-      IO.inspect(
-        [
-          attr: attr,
-          str_field: str_field,
-          tag: tag,
-          field: field,
-          module: module,
-          embed: module.__schema__(:embed, field),
-          type: type
-        ],
-        label: "unpack_tag"
-      )
+      field when is_atom(field) ->
+        unpack_tag_aux(field, {tag, attr, child}, module, acc)
     end
+  end
+
+  defp unpack_tag_aux(field, {tag, attr, child}, module, acc) do
+    type = module.__schema__(:type, field)
 
     case type do
       nil ->
-        try_transform({tag, attr, child}, module, acc)
+        acc
 
       {:array, subtype} ->
         update_array(acc, field, charlist_to_type(child, subtype, field, attr))
@@ -335,7 +330,9 @@ defmodule XmlSchema do
   defp subtype_attr(st, _attr), do: st
 
   defp try_transform({tag, attr, child}, module, acc) do
-    module.transform(tag)
+    tag
+    |> module.transform()
+    |> module.get_tag()
     |> case do
       nil ->
         acc
@@ -344,7 +341,7 @@ defmodule XmlSchema do
         acc
 
       new_tag ->
-        unpack_tag({new_tag, [{~c"_tag", tag} | attr], child}, module, acc)
+        unpack_tag_aux(new_tag, {new_tag, [{~c"_tag", tag} | attr], child}, module, acc)
     end
   end
 
@@ -517,6 +514,7 @@ defmodule XmlSchema do
       @moduledoc "See XmlSchema for information"
       use Ecto.Schema
       import XmlSchema
+      @before_compile XmlSchema.Precompile
 
       @doc "Parse xml_string using #{xml_name} as starting point"
       def parse_xml(xml_string) do
@@ -530,7 +528,7 @@ defmodule XmlSchema do
       def xml_tag_list, do: Enum.reverse(@tag_order)
 
       @doc "Overridable function for transforming input tags"
-      def transform(_tag), do: nil
+      def transform(tag), do: tag
       defoverridable transform: 1
     end
   end

@@ -1,7 +1,12 @@
 defmodule Permuted.Items do
   use XmlSchema, transform: &transform/1
 
-  def transform(_tag), do: ~c"fake"
+  @doc """
+  input tags are premuted, item1, item2, rewrite them to a :fake tag
+  save the original tag in the _tag attribute
+  """
+
+  def transform(_tag), do: "fake"
 
   xml do
     xml_many :fake, Item do
