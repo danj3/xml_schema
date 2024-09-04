@@ -4,7 +4,7 @@ defmodule XmlSchema.MixProject do
   def project do
     [
       app: :xml_schema,
-      version: "2.0.1",
+      version: "2.0.2",
       elixir: "~> 1.13",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -16,7 +16,9 @@ defmodule XmlSchema.MixProject do
       source_url: "https://github.com/danj3/xml_schema/tree/v-2.0.1",
       docs: [
         main: "readme",
-        extras: ["README.md"]
+        extras: [
+          "README.md"
+        ]
       ]
     ]
   end
@@ -25,6 +27,16 @@ defmodule XmlSchema.MixProject do
     [
       exclude_patterns: [~r{.*~$}],
       description: description(),
+      files: [
+        "mix.exs",
+        "*.md",
+        "lib",
+        "test/support/example/many.ex",
+        "test/support/example/one.ex",
+        "test/support/example/one_block.ex",
+        "test/support/example/tag.ex",
+        "test/support/example/attribute.ex"
+      ],
       licenses: ["Apache-2.0"],
       links: %{
         "github" => "https://github.com/danj3/xml_schema"

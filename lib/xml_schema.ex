@@ -314,6 +314,9 @@ defmodule XmlSchema do
       {:parameterized, Ecto.Embedded, params} ->
         embed(acc, field, {tag, attr, child}, params)
 
+      {:parameterized, {Ecto.Embedded, params}} ->
+        embed(acc, field, {tag, attr, child}, params)
+
       subtype ->
         Map.put(acc, field, charlist_to_type(child, subtype, field, attr))
     end
@@ -404,7 +407,7 @@ defmodule XmlSchema do
 
   defp charlist_to_type(other, type, field, _attr) do
     raise ParseError,
-      message: "tag #{field} to #{type} is not a string input: #{inspect(other)}"
+      message: "tag #{field} to #{inspect(type)} is not a string input: #{inspect(other)}"
   end
 
   defp generate_custom(maybe_custom, fld_c, list_comp_val, acc) when is_list(list_comp_val) do
@@ -446,6 +449,12 @@ defmodule XmlSchema do
         [generate_child(val, fld_c) | acc]
 
       {:parameterized, Ecto.Embedded, %{cardinality: :many}} ->
+        [Enum.map(val, &generate_child(&1, fld_c)) | acc]
+
+      {:parameterized, {Ecto.Embedded, %{cardinality: :one}}} ->
+        [generate_child(val, fld_c) | acc]
+
+      {:parameterized, {Ecto.Embedded, %{cardinality: :many}}} ->
         [Enum.map(val, &generate_child(&1, fld_c)) | acc]
 
       {:array, _ptype} ->
