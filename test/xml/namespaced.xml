@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<soap:Envelope xmlns="urn:example:orders" xmlns:m="urn:example:meta" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Header>
+    <m:Trace m:id="42">abc</m:Trace>
+  </soap:Header>
+  <soap:Body>
+    <Order status="open" xml:lang="en">
+      <Id>7</Id>
+      <Line>
+        <Sku>A-1</Sku>
+      </Line>
+      <Line>
+        <Sku>B-2</Sku>
+      </Line>
+    </Order>
+  </soap:Body>
+</soap:Envelope>
