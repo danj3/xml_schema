@@ -75,6 +75,21 @@ and results in
   }
 ```
 
+# Namespaces
+
+Namespaced elements record their namespace URI as an `"_ns"` attribute and
+namespaced attributes are keyed as `"{uri}local"`. To write a document back
+with its original prefixes, parse with `parse_xml_with_namespaces/1` and hand
+the returned URI to prefix map to the generator:
+
+```elixir
+{doc, namespaces} = Envelope.parse_xml_with_namespaces(xml)
+XmlSchema.generate_xml(doc, namespaces: namespaces)
+```
+
+Without a map, prefixes `ns0`, `ns1`, ... are generated as needed. See the
+`XmlSchema` module docs for details.
+
 For examples look at test/xml, test/support
 
 License

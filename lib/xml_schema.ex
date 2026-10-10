@@ -20,6 +20,7 @@ defmodule XmlSchema do
 
   An XmlSchema will provide the generated functions:
   - parse_xml/1 - accepts an xml string to parse
+  - parse_xml_with_namespaces/1 - like parse_xml/1, also returns the document namespaces
   - xml_tag/0 - returns the tag used when generating xml from this node
   - xml_tag_list - order list of tags in this schema
   - transform/1 - overridable function that can be used to transform tag names during parsing
@@ -98,6 +99,34 @@ defmodule XmlSchema do
   #{File.read!("test/support/example/attribute.ex")}
   ```
 
+
+  # Namespaces
+
+  Tags are matched on their local name, the namespace is kept as data:
+
+    - a namespaced element stores its namespace URI in `_attributes` under
+      the `"_ns"` key (for `xml_tag` this needs `{:param, type}`, bare values
+      have nowhere to keep it)
+    - namespaced attributes are keyed in Clark notation, `"{uri}local"`
+
+  Prefixes are not part of the parsed structs. `parse_xml_with_namespaces/2`
+  returns them as a map of namespace URI to prefix (`""` being the default
+  namespace), which `generate_xml/2` accepts as the `:namespaces` option:
+
+  ```elixir
+  {envelope, namespaces} = Envelope.parse_xml_with_namespaces(xml)
+  # namespaces: %{"http://schemas.xmlsoap.org/soap/envelope/" => "soap", "urn:orders" => ""}
+
+  XmlSchema.generate_xml(envelope, namespaces: namespaces)
+  ```
+
+  The map, which can just as well be written by hand to choose other
+  prefixes, is declared on the top tag. Namespaces missing from it are bound
+  to generated prefixes (`ns0`, `ns1`, ...) on the element that uses them, so
+  the output is namespace-equivalent to the input even without a map.
+
+  Elements without `"_ns"` are written unprefixed and therefore take the
+  default namespace in scope, if any.
 
   For more examples, see test/support.
   """
@@ -241,20 +270,84 @@ defmodule XmlSchema do
     defexception message: "probem parsing xml into schema"
   end
 
+  # Bound to the `xml` prefix by definition, never declared.
+  @xml_ns "http://www.w3.org/XML/1998/namespace"
+
   @doc """
   Parse an xml string based on the structure of `module`, which must be an
   XmlSchema. This function is added to any module that uses XmlSchema and
   is simplest to call the function there instead of this one.
   """
   def parse_xml(xml_string, module) do
-    :erlsom.simple_form(xml_string)
-    |> case do
-      {:ok, sxml, _extra} ->
-        unpack_xml(sxml, module)
-
-      other ->
-        other
+    case simple_form(xml_string) do
+      {:ok, sxml} -> unpack_root(sxml, module)
+      other -> other
     end
+  end
+
+  @doc """
+  Same as `parse_xml/2`, but also returns the namespaces used by the
+  document as a map of namespace URI to prefix, e.g.
+  `{%Envelope{...}, %{"http://schemas.xmlsoap.org/soap/envelope/" => "soap"}}`.
+
+  The map can be given to `generate_xml/2` as the `:namespaces` option to
+  reproduce the original prefixes. See "Namespaces" in the module docs.
+  """
+  def parse_xml_with_namespaces(xml_string, module) do
+    case simple_form(xml_string) do
+      {:ok, sxml} -> {unpack_root(sxml, module), collect_namespaces(sxml)}
+      other -> other
+    end
+  end
+
+  # erlsom drops xmlns declarations and, by default, also the prefixes.
+  # nameFun keeps the prefix so namespace aliases survive parsing.
+  defp simple_form(xml_string) do
+    case :erlsom.simple_form(xml_string, nameFun: &qname/3) do
+      {:ok, sxml, _extra} -> {:ok, sxml}
+      other -> other
+    end
+  end
+
+  defp qname(local, ns, prefix) do
+    ns = if ns in [[], ""], do: nil, else: to_string(ns)
+    {to_string(local), ns, to_string(prefix)}
+  end
+
+  defp collect_namespaces(sxml) do
+    {by_uri, _prefixes} = collect_namespaces(sxml, {%{}, MapSet.new()})
+    by_uri
+  end
+
+  defp collect_namespaces({{_local, ns, prefix}, attr, children}, acc) do
+    acc = bind_namespace(acc, ns, prefix)
+
+    acc =
+      Enum.reduce(attr, acc, fn {{_local, ns, prefix}, _v}, a -> bind_namespace(a, ns, prefix) end)
+
+    Enum.reduce(children, acc, fn
+      {_qname, _attr, _children} = element, a -> collect_namespaces(element, a)
+      _text, a -> a
+    end)
+  end
+
+  # First binding seen (document order) wins for both URI and prefix, so the
+  # result is always a one-to-one mapping usable by the generator.
+  defp bind_namespace(acc, nil, _prefix), do: acc
+  defp bind_namespace(acc, @xml_ns, _prefix), do: acc
+
+  defp bind_namespace({by_uri, prefixes} = acc, uri, prefix) do
+    if Map.has_key?(by_uri, uri) or MapSet.member?(prefixes, prefix) do
+      acc
+    else
+      {Map.put(by_uri, uri, prefix), MapSet.put(prefixes, prefix)}
+    end
+  end
+
+  # Children get `_ns` from unpack_tag/3, the root element has to get it here.
+  defp unpack_root({tag, attr, children}, module) do
+    {_local, attr} = ns_tag(tag, attr)
+    unpack_xml({tag, attr, children}, module)
   end
 
   defp unpack_xml({_tag, attr, children}, module) do
@@ -272,21 +365,16 @@ defmodule XmlSchema do
   end
 
   defp attr_translate(attr) do
-    Map.new(attr, fn {k, v} -> {to_string(k), to_string(v)} end)
+    Map.new(attr, fn {k, v} -> {attr_key(k), to_string(v)} end)
   end
 
-  @nsre Regex.compile!("^({(?<ns>[^}]+)})?(?<tag>.*)")
+  # Namespaced attributes are keyed in Clark notation: "{uri}local"
+  defp attr_key({local, nil, _prefix}), do: local
+  defp attr_key({local, ns, _prefix}), do: "{#{ns}}#{local}"
+  defp attr_key(key), do: to_string(key)
 
-  defp ns_tag(tag, attr) do
-    with [?{ | _] <- tag,
-         str_tag <- to_string(tag),
-         %{"ns" => ns, "tag" => bare_tag} <- Regex.named_captures(@nsre, str_tag) do
-      {bare_tag, [{~c"_ns", ns} | attr]}
-    else
-      _unscoped ->
-        {to_string(tag), attr}
-    end
-  end
+  defp ns_tag({local, nil, _prefix}, attr), do: {local, attr}
+  defp ns_tag({local, ns, _prefix}, attr), do: {local, [{"_ns", ns} | attr]}
 
   defp unpack_tag({tag, attr_in, child}, module, acc) do
     {str_field, attr} = ns_tag(tag, attr_in)
@@ -410,66 +498,71 @@ defmodule XmlSchema do
       message: "tag #{field} to #{inspect(type)} is not a string input: #{inspect(other)}"
   end
 
-  defp generate_custom(maybe_custom, fld_c, list_comp_val, acc) when is_list(list_comp_val) do
+  defp generate_custom(maybe_custom, fld_c, list_comp_val, scope, acc)
+       when is_list(list_comp_val) do
     Enum.reduce(list_comp_val, acc, fn sval, acc2 ->
-      generate_custom(maybe_custom, fld_c, sval, acc2)
+      generate_custom(maybe_custom, fld_c, sval, scope, acc2)
     end)
   end
 
-  defp generate_custom(maybe_custom, fld_c, comp_val, acc) do
-    {val, attr} =
+  defp generate_custom(maybe_custom, fld_c, comp_val, scope, acc) do
+    {tag, attr, val} =
       case comp_val do
-        {v1, a1} when is_map(a1) -> {v1, Map.to_list(a1)}
-        v1 -> {v1, []}
+        {v1, a1} when is_map(a1) ->
+          {tag, attr, _scope} = qualify_element(fld_c, a1, scope)
+          {tag, attr, v1}
+
+        v1 ->
+          {fld_c, [], v1}
       end
 
     cond do
       Ecto.Type.base?(maybe_custom) ->
-        [{fld_c, attr, val} | acc]
+        [{tag, attr, val} | acc]
 
       is_atom(maybe_custom) and
         Code.ensure_compiled(maybe_custom) == {:module, maybe_custom} and
           function_exported?(maybe_custom, :dump, 1) ->
-        [{fld_c, attr, maybe_custom.dump(val)} | acc]
+        [{tag, attr, maybe_custom.dump(val)} | acc]
 
       true ->
         acc
     end
   end
 
-  defp generate_value_array({:array, ptype} = type, fld_c, [h | t], acc) do
-    generate_value_array(type, fld_c, t, generate_value(ptype, fld_c, h, acc))
+  defp generate_value_array({:array, ptype} = type, fld_c, [h | t], scope, acc) do
+    generate_value_array(type, fld_c, t, scope, generate_value(ptype, fld_c, h, scope, acc))
   end
 
-  defp generate_value_array(_type, _fld_c, [], acc), do: acc
+  defp generate_value_array(_type, _fld_c, [], _scope, acc), do: acc
 
-  defp generate_value(type, fld_c, val, acc) do
+  defp generate_value(type, fld_c, val, scope, acc) do
     case type do
       {:parameterized, Ecto.Embedded, %{cardinality: :one}} ->
-        [generate_child(val, fld_c) | acc]
+        [generate_child(val, fld_c, scope) | acc]
 
       {:parameterized, Ecto.Embedded, %{cardinality: :many}} ->
-        [Enum.map(val, &generate_child(&1, fld_c)) | acc]
+        [Enum.map(val, &generate_child(&1, fld_c, scope)) | acc]
 
       {:parameterized, {Ecto.Embedded, %{cardinality: :one}}} ->
-        [generate_child(val, fld_c) | acc]
+        [generate_child(val, fld_c, scope) | acc]
 
       {:parameterized, {Ecto.Embedded, %{cardinality: :many}}} ->
-        [Enum.map(val, &generate_child(&1, fld_c)) | acc]
+        [Enum.map(val, &generate_child(&1, fld_c, scope)) | acc]
 
       {:array, _ptype} ->
-        generate_value_array(type, fld_c, Enum.reverse(val), acc)
+        generate_value_array(type, fld_c, Enum.reverse(val), scope, acc)
 
       {:param, ptype} ->
-        generate_custom(ptype, fld_c, val, acc)
+        generate_custom(ptype, fld_c, val, scope, acc)
 
       _maybe_custom ->
-        generate_custom(type, fld_c, val, acc)
+        generate_custom(type, fld_c, val, scope, acc)
     end
   end
 
-  defp generate_child(schema, as_tag) do
-    attr = (Map.get(schema, :_attributes) || %{}) |> Map.to_list()
+  defp generate_child(schema, as_tag, scope) do
+    {tag, attr, scope} = qualify_element(as_tag, Map.get(schema, :_attributes), scope)
 
     children =
       schema.__struct__.xml_tag_list()
@@ -491,24 +584,132 @@ defmodule XmlSchema do
 
             val ->
               schema.__struct__.__schema__(:type, fld)
-              |> generate_value(fld_c, val, acc)
+              |> generate_value(fld_c, val, scope, acc)
           end
       end)
 
-    {as_tag, attr, children}
+    {tag, attr, children}
+  end
+
+  # Namespace scope while generating: a map of namespace URI to the prefix
+  # bound to it at the current element ("" is the default namespace).
+  #
+  # qualify_element/3 turns the parsed `_ns` attribute and Clark notation
+  # attribute keys ("{uri}local") back into prefixed names, emitting xmlns
+  # declarations for any namespace not yet in scope. Returns the tag, the
+  # xml attribute list and the scope for the element's children.
+  defp qualify_element(tag, nil, scope), do: {tag, [], scope}
+
+  defp qualify_element(tag, attr, scope) do
+    {ns, attr} = Map.pop(attr, "_ns")
+    {tag, decls, scope} = qualify_name(tag, ns, :element, scope)
+
+    {attr, decls, scope} =
+      Enum.reduce(attr, {[], decls, scope}, fn {key, val}, {attr, decls, scope} ->
+        {local, ns} = split_clark(key)
+        {name, new_decls, scope} = qualify_name(local, ns, :attribute, scope)
+        {[{name, val} | attr], decls ++ new_decls, scope}
+      end)
+
+    {tag, decls ++ Enum.sort(attr), scope}
+  end
+
+  defp qualify_name(local, nil, _kind, scope), do: {local, [], scope}
+
+  defp qualify_name(local, uri, kind, scope) do
+    case Map.fetch(scope, uri) do
+      {:ok, ""} when kind == :element ->
+        {local, [], scope}
+
+      {:ok, prefix} when prefix != "" ->
+        {"#{prefix}:#{local}", [], scope}
+
+      # Unknown namespace, or default namespace on an attribute (attributes
+      # are never in the default namespace): bind a fresh prefix locally.
+      _ ->
+        prefix = free_prefix(scope)
+        {"#{prefix}:#{local}", [{"xmlns:#{prefix}", uri}], Map.put(scope, uri, prefix)}
+    end
+  end
+
+  defp free_prefix(scope, n \\ 0) do
+    prefix = "ns#{n}"
+
+    if prefix in Map.values(scope),
+      do: free_prefix(scope, n + 1),
+      else: prefix
+  end
+
+  defp split_clark(key) when is_binary(key) do
+    case Regex.run(~r/^\{([^}]+)\}(.+)$/, key, capture: :all_but_first) do
+      [ns, local] -> {local, ns}
+      nil -> {key, nil}
+    end
+  end
+
+  defp split_clark(key), do: {key, nil}
+
+  defp namespace_declarations(namespaces) do
+    namespaces
+    |> Enum.sort_by(fn {_uri, prefix} -> prefix end)
+    |> Enum.map(fn
+      {uri, ""} -> {"xmlns", uri}
+      {uri, prefix} -> {"xmlns:#{prefix}", uri}
+    end)
+  end
+
+  defp validate_namespaces!(namespaces) when is_map(namespaces) do
+    namespaces = Map.delete(namespaces, @xml_ns)
+
+    Enum.each(namespaces, fn
+      {uri, prefix} when is_binary(uri) and is_binary(prefix) ->
+        if prefix =~ ~r/^xml/i,
+          do: raise(ArgumentError, "reserved namespace prefix #{inspect(prefix)} for #{uri}")
+
+      other ->
+        raise ArgumentError,
+              "namespaces must map uri strings to prefix strings, got: #{inspect(other)}"
+    end)
+
+    namespaces
+    |> Enum.group_by(&elem(&1, 1), &elem(&1, 0))
+    |> Enum.find(fn {_prefix, uris} -> length(uris) > 1 end)
+    |> case do
+      nil ->
+        namespaces
+
+      {prefix, uris} ->
+        raise ArgumentError,
+              "namespace prefix #{inspect(prefix)} is bound to more than one uri: #{inspect(Enum.sort(uris))}"
+    end
+  end
+
+  defp validate_namespaces!(other) do
+    raise ArgumentError, "namespaces must be a map, got: #{inspect(other)}"
   end
 
   @doc """
-  Generate xml document from xml schema
-  """
+  Generate xml document from xml schema.
 
-  def generate_xml(schema) do
-    generate_xml(schema, schema.__struct__.xml_tag())
+  `opts` (or a top tag `name`, see `generate_xml/3`):
+    - `namespaces:` map of namespace URI to prefix, declared on the top
+      tag and used to qualify namespaced tags and attributes. `""` binds
+      the default namespace. See "Namespaces" in the module docs.
+  """
+  def generate_xml(schema, name_or_opts \\ []) do
+    if is_list(name_or_opts) and Keyword.keyword?(name_or_opts),
+      do: generate_xml(schema, schema.__struct__.xml_tag(), name_or_opts),
+      else: generate_xml(schema, name_or_opts, [])
   end
 
   @doc "Generate xml document from xml schema with `name` top tag"
-  def generate_xml(schema, name) do
-    generate_child(schema, name)
+  def generate_xml(schema, name, opts) do
+    namespaces = opts |> Keyword.get(:namespaces, %{}) |> validate_namespaces!()
+    scope = Map.put(namespaces, @xml_ns, "xml")
+
+    {tag, attr, children} = generate_child(schema, name, scope)
+
+    {tag, namespace_declarations(namespaces) ++ attr, children}
     |> XmlBuilder.document()
     |> XmlBuilder.generate(pretty: true)
   end
@@ -528,6 +729,11 @@ defmodule XmlSchema do
       @doc "Parse xml_string using #{xml_name} as starting point"
       def parse_xml(xml_string) do
         XmlSchema.parse_xml(xml_string, __MODULE__)
+      end
+
+      @doc "Parse xml_string using #{xml_name} as starting point, also returning its namespaces"
+      def parse_xml_with_namespaces(xml_string) do
+        XmlSchema.parse_xml_with_namespaces(xml_string, __MODULE__)
       end
 
       @doc "return tag name to use when generating xml"
